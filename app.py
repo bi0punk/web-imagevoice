@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 import asyncio
 import io
-import os
 import re
 from datetime import datetime
 from pathlib import Path
@@ -24,21 +23,72 @@ DEFAULT_RATE = "+0%"
 DEFAULT_VOLUME = "+0%"
 
 app = Flask(__name__)
+app.config["MAX_CONTENT_LENGTH"] = 8 * 1024 * 1024  # 8 MB
 
 
 # -----------------------------
 # Helpers
 # -----------------------------
-def clean_text(text: str) -> str:
-    text = (text or "").replace("\r", "\n")
+def normalize_paragraphs_ocr(text: str) -> str:
+    """
+    Convierte saltos de línea "visuales" del OCR en párrafos naturales.
+    - Une líneas que no terminan en puntuación fuerte.
+    - Mantiene separación por párrafos (doble salto) al reconstruir.
+    """
+    if not text:
+        return ""
+
+    # Normaliza saltos y espacios
+    text = text.replace("\r", "\n")
+    # Colapsa espacios horizontales
     text = re.sub(r"[ \t]+", " ", text)
-    text = re.sub(r"\n{3,}", "\n\n", text)
-    return text.strip()
+
+    # Preserva párrafos aproximados:
+    # Tesseract suele separar párrafos con líneas vacías => las detectamos
+    raw_lines = text.split("\n")
+
+    paragraphs = []
+    current_lines = []
+
+    for ln in raw_lines:
+        ln = ln.strip()
+        if not ln:
+            # fin de párrafo
+            if current_lines:
+                paragraphs.append(current_lines)
+                current_lines = []
+            continue
+        current_lines.append(ln)
+
+    if current_lines:
+        paragraphs.append(current_lines)
+
+    rebuilt_paragraphs = []
+    for plines in paragraphs:
+        merged = ""
+        for line in plines:
+            if not merged:
+                merged = line
+                continue
+
+            # Si la línea anterior no termina en puntuación fuerte,
+            # asumimos que es "salto visual" y unimos.
+            if not merged.endswith((".", ":", ";", "?", "!", "»", "”")):
+                merged += " " + line
+            else:
+                # empieza una nueva oración/segmento dentro del mismo párrafo
+                merged += " " + line
+
+        # Limpieza final: espacios duplicados
+        merged = re.sub(r"\s{2,}", " ", merged).strip()
+        rebuilt_paragraphs.append(merged)
+
+    return "\n\n".join(rebuilt_paragraphs).strip()
 
 
 def preprocess_for_ocr(pil_img: Image.Image) -> np.ndarray:
     """
-    Preproceso básico para OCR (mejora mucho en fotos reales):
+    Preproceso básico (suficiente para MVP):
     - RGB -> Gray
     - Blur suave
     - Otsu threshold
@@ -50,12 +100,12 @@ def preprocess_for_ocr(pil_img: Image.Image) -> np.ndarray:
     return th
 
 
-def ocr_image_bytes(image_bytes: bytes, lang: str) -> str:
+def ocr_image_bytes(image_bytes: bytes, lang: str = DEFAULT_OCR_LANG) -> str:
     pil_img = Image.open(io.BytesIO(image_bytes))
     processed = preprocess_for_ocr(pil_img)
     config = "--oem 3 --psm 6"
-    txt = pytesseract.image_to_string(processed, lang=lang, config=config)
-    return clean_text(txt)
+    raw = pytesseract.image_to_string(processed, lang=lang, config=config)
+    return normalize_paragraphs_ocr(raw)
 
 
 async def tts_to_mp3(text: str, voice: str, rate: str, volume: str, out_path: str):
@@ -64,18 +114,17 @@ async def tts_to_mp3(text: str, voice: str, rate: str, volume: str, out_path: st
 
 
 def generate_mp3_bytes(text: str, voice: str, rate: str, volume: str) -> bytes:
-    text = clean_text(text)
+    text = (text or "").strip()
     if not text:
         raise ValueError("Texto vacío para TTS")
 
-    # nombre único (evita colisiones concurrentes simples)
     ts = datetime.utcnow().strftime("%Y%m%d_%H%M%S_%f")
     mp3_path = OUT_DIR / f"tts_{ts}.mp3"
 
     asyncio.run(tts_to_mp3(text, voice, rate, volume, str(mp3_path)))
     data = mp3_path.read_bytes()
 
-    # limpieza best-effort (en prod mejor usar TTL/cron o storage)
+    # limpieza best-effort
     try:
         mp3_path.unlink(missing_ok=True)
     except Exception:
@@ -97,7 +146,7 @@ def api_ocr():
     if "image" not in request.files:
         return jsonify({"ok": False, "error": "Falta archivo 'image'"}), 400
 
-    lang = request.form.get("lang", DEFAULT_OCR_LANG).strip() or DEFAULT_OCR_LANG
+    lang = (request.form.get("lang") or DEFAULT_OCR_LANG).strip()
     f = request.files["image"]
     img_bytes = f.read()
 
@@ -131,5 +180,4 @@ def api_tts():
 
 
 if __name__ == "__main__":
-    # Dev server (producción: gunicorn)
     app.run(host="0.0.0.0", port=5000, debug=True)

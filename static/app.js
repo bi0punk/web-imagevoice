@@ -1,4 +1,4 @@
-async function postOCR(file, lang) {
+async function postOCRFile(file, lang) {
   const fd = new FormData();
   fd.append("image", file);
   fd.append("lang", lang);
@@ -28,22 +28,85 @@ function setStatus(el, msg, kind) {
   el.className = kind === "error" ? "error" : (kind === "ok" ? "ok" : "muted");
 }
 
-document.getElementById("btnOcr").addEventListener("click", async () => {
-  const file = document.getElementById("image").files[0];
-  const lang = document.getElementById("ocrLang").value;
+function showPreview(file) {
+  const preview = document.getElementById("preview");
+  const img = document.getElementById("previewImg");
+  if (!preview || !img) return;
+
+  const url = URL.createObjectURL(file);
+  img.src = url;
+  preview.style.display = "block";
+}
+
+async function doOCRFromFile(file) {
   const status = document.getElementById("ocrStatus");
-  if (!file) return setStatus(status, "Selecciona una imagen.", "error");
+  const lang = document.getElementById("ocrLang").value;
 
   setStatus(status, "Procesando OCR...", "");
   try {
-    const text = await postOCR(file, lang);
+    showPreview(file);
+    const text = await postOCRFile(file, lang);
     document.getElementById("text").value = text;
     setStatus(status, "OK", "ok");
   } catch (e) {
     setStatus(status, e.message, "error");
   }
+}
+
+// --- Botón OCR (modo clásico con file input) ---
+document.getElementById("btnOcr").addEventListener("click", async () => {
+  const file = document.getElementById("image").files[0];
+  const status = document.getElementById("ocrStatus");
+  if (!file) return setStatus(status, "Selecciona una imagen.", "error");
+  await doOCRFromFile(file);
 });
 
+// --- Drag & Drop + Paste ---
+(function initDropAndPaste() {
+  const dropzone = document.getElementById("dropzone");
+  if (!dropzone) return;
+
+  dropzone.addEventListener("dragover", (e) => {
+    e.preventDefault();
+    dropzone.classList.add("dragover");
+  });
+
+  dropzone.addEventListener("dragleave", () => {
+    dropzone.classList.remove("dragover");
+  });
+
+  dropzone.addEventListener("drop", async (e) => {
+    e.preventDefault();
+    dropzone.classList.remove("dragover");
+
+    const file = e.dataTransfer.files && e.dataTransfer.files[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      setStatus(document.getElementById("ocrStatus"), "El archivo no es una imagen.", "error");
+      return;
+    }
+
+    // opcional: setear también el input file para que quede visible seleccionado
+    try { document.getElementById("image").files = e.dataTransfer.files; } catch (_) {}
+
+    await doOCRFromFile(file);
+  });
+
+  document.addEventListener("paste", async (e) => {
+    const status = document.getElementById("ocrStatus");
+    const items = e.clipboardData && e.clipboardData.items ? [...e.clipboardData.items] : [];
+    const imgItem = items.find(i => i.type && i.type.startsWith("image/"));
+
+    if (!imgItem) return; // no hay imagen pegada
+
+    const file = imgItem.getAsFile();
+    if (!file) return setStatus(status, "No pude leer la imagen del portapapeles.", "error");
+
+    await doOCRFromFile(file);
+  });
+})();
+
+// --- Botón TTS ---
 document.getElementById("btnTts").addEventListener("click", async () => {
   const status = document.getElementById("ttsStatus");
   const text = document.getElementById("text").value || "";

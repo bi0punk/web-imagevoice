@@ -15,6 +15,20 @@
     .muted { color: #555; font-size: 0.95rem; }
     .error { color: #b00020; font-weight: 600; }
     .ok { color: #0a7a0a; font-weight: 600; }
+
+    /* --- NUEVO: dropzone --- */
+    .dropzone {
+      border: 2px dashed #888;
+      border-radius: 12px;
+      padding: 18px;
+      margin: 12px 0;
+      text-align: center;
+      user-select: none;
+    }
+    .dropzone.dragover { background: #eef; border-color: #556; }
+    .dropzone small { display:block; margin-top: 6px; }
+    .preview { margin-top: 10px; display:none; }
+    .preview img { max-width: 100%; border-radius: 10px; border: 1px solid #eee; }
   </style>
 </head>
 <body>
@@ -23,6 +37,18 @@
 
   <div class="card">
     <h3>1) OCR desde imagen</h3>
+
+    <!-- NUEVO: arrastrar/pegar -->
+    <div id="dropzone" class="dropzone">
+      Arrastra una imagen aquí o pégala con <b>Ctrl+V</b>
+      <small class="muted">También puedes seguir usando el selector de archivo de abajo.</small>
+
+      <div id="preview" class="preview">
+        <p class="muted" style="margin:10px 0 6px;">Vista previa:</p>
+        <img id="previewImg" alt="preview"/>
+      </div>
+    </div>
+
     <div class="row">
       <div>
         <label>Imagen (JPG/PNG)</label><br/>
