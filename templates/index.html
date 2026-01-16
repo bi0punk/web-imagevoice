@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Lector OCR + Voz (Flask)</title>
+  <style>
+    body { font-family: system-ui, Arial; max-width: 900px; margin: 30px auto; padding: 0 16px; }
+    textarea { width: 100%; min-height: 180px; }
+    .row { display: flex; gap: 12px; flex-wrap: wrap; }
+    .card { border: 1px solid #ddd; border-radius: 10px; padding: 14px; margin: 12px 0; }
+    label { font-weight: 600; }
+    button { padding: 10px 14px; cursor: pointer; }
+    input[type="text"] { width: 320px; padding: 6px; }
+    .muted { color: #555; font-size: 0.95rem; }
+    .error { color: #b00020; font-weight: 600; }
+    .ok { color: #0a7a0a; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <h1>📖 OCR + 🔊 TTS (Flask)</h1>
+  <p class="muted">Sube una imagen para extraer texto con OCR o pega texto directo, y luego genera el audio MP3.</p>
+
+  <div class="card">
+    <h3>1) OCR desde imagen</h3>
+    <div class="row">
+      <div>
+        <label>Imagen (JPG/PNG)</label><br/>
+        <input id="image" type="file" accept="image/*" />
+      </div>
+      <div>
+        <label>Idioma OCR</label><br/>
+        <select id="ocrLang">
+          <option value="spa" selected>spa (español)</option>
+          <option value="eng">eng (inglés)</option>
+        </select>
+      </div>
+    </div>
+    <p>
+      <button id="btnOcr">🔎 Extraer texto (OCR)</button>
+      <span id="ocrStatus" class="muted"></span>
+    </p>
+  </div>
+
+  <div class="card">
+    <h3>2) Texto a leer</h3>
+    <textarea id="text" placeholder="Aquí quedará el texto OCR, o pega texto manualmente..."></textarea>
+  </div>
+
+  <div class="card">
+    <h3>3) Voz (TTS)</h3>
+    <div class="row">
+      <div>
+        <label>Voz (Edge TTS)</label><br/>
+        <input id="voice" type="text" value="es-CL-CatalinaNeural" />
+      </div>
+      <div>
+        <label>Velocidad</label><br/>
+        <input id="rate" type="text" value="+0%" />
+      </div>
+      <div>
+        <label>Volumen</label><br/>
+        <input id="volume" type="text" value="+0%" />
+      </div>
+    </div>
+
+    <p>
+      <button id="btnTts">🔊 Generar audio</button>
+      <span id="ttsStatus" class="muted"></span>
+    </p>
+
+    <audio id="player" controls style="width:100%; display:none;"></audio>
+    <p><a id="download" href="#" download="lectura.mp3" style="display:none;">⬇️ Descargar MP3</a></p>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
