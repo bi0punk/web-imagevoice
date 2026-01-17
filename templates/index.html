@@ -4,7 +4,12 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Lector OCR + Voz (Flask)</title>
+
+  <!-- Bootstrap 5 (CDN) -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+
   <style>
+    /* Mantengo tus clases originales (por compatibilidad) */
     body { font-family: system-ui, Arial; max-width: 900px; margin: 30px auto; padding: 0 16px; }
     textarea { width: 100%; min-height: 180px; }
     .row { display: flex; gap: 12px; flex-wrap: wrap; }
@@ -16,89 +21,235 @@
     .error { color: #b00020; font-weight: 600; }
     .ok { color: #0a7a0a; font-weight: 600; }
 
-    /* --- NUEVO: dropzone --- */
-    .dropzone {
-      border: 2px dashed #888;
+    /* --- NUEVO: tema minimalista técnico/científico --- */
+    :root{
+      --bg: #0b0f14;
+      --panel: #0f1720;
+      --panel-2: #0c131b;
+      --border: rgba(255,255,255,.10);
+      --text: rgba(255,255,255,.92);
+      --muted: rgba(255,255,255,.70);
+      --accent: #7aa2ff; /* azul técnico */
+      --good: #4ade80;
+      --bad: #fb7185;
+    }
+
+    body{
+      background: radial-gradient(1200px 600px at 20% 0%, rgba(122,162,255,.10), transparent 55%),
+                  radial-gradient(900px 500px at 80% 10%, rgba(74,222,128,.07), transparent 55%),
+                  var(--bg);
+      color: var(--text);
+    }
+
+    /* Encabezado */
+    .app-header{
+      border: 1px solid var(--border);
+      background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
+      border-radius: 16px;
+      padding: 18px 18px;
+      margin-bottom: 14px;
+      box-shadow: 0 10px 30px rgba(0,0,0,.35);
+    }
+
+    /* Cards tipo "panel laboratorio" */
+    .card{
+      background: linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.02));
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      box-shadow: 0 10px 30px rgba(0,0,0,.25);
+      padding: 16px;
+      margin: 14px 0;
+    }
+
+    /* Tipografía */
+    h1, h3 { letter-spacing: .2px; }
+    .muted { color: var(--muted); }
+    .ok { color: var(--good); }
+    .error { color: var(--bad); }
+
+    /* Inputs */
+    .form-control, .form-select, textarea, input[type="text"]{
+      background: rgba(255,255,255,.04) !important;
+      color: var(--text) !important;
+      border: 1px solid var(--border) !important;
+      border-radius: 12px !important;
+    }
+    .form-control::placeholder, textarea::placeholder{
+      color: rgba(255,255,255,.45);
+    }
+    textarea{
+      min-height: 220px;
+      padding: 12px;
+    }
+
+    /* Botones */
+    .btn-tech{
+      background: rgba(122,162,255,.14);
+      border: 1px solid rgba(122,162,255,.35);
+      color: var(--text);
       border-radius: 12px;
+    }
+    .btn-tech:hover{
+      background: rgba(122,162,255,.22);
+      border-color: rgba(122,162,255,.55);
+    }
+
+    .btn-ghost{
+      background: rgba(255,255,255,.04);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 12px;
+    }
+    .btn-ghost:hover{
+      background: rgba(255,255,255,.07);
+    }
+
+    /* Links */
+    a { color: var(--accent); }
+    a:hover { color: rgba(122,162,255,.85); }
+
+    /* --- Dropzone (manteniendo tu lógica) --- */
+    .dropzone {
+      border: 2px dashed rgba(255,255,255,.25);
+      border-radius: 16px;
       padding: 18px;
       margin: 12px 0;
       text-align: center;
       user-select: none;
+
+      background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
     }
-    .dropzone.dragover { background: #eef; border-color: #556; }
+    .dropzone.dragover {
+      background: rgba(122,162,255,.12);
+      border-color: rgba(122,162,255,.70);
+    }
     .dropzone small { display:block; margin-top: 6px; }
+
     .preview { margin-top: 10px; display:none; }
-    .preview img { max-width: 100%; border-radius: 10px; border: 1px solid #eee; }
+    .preview img {
+      max-width: 100%;
+      border-radius: 14px;
+      border: 1px solid var(--border);
+      box-shadow: 0 10px 25px rgba(0,0,0,.35);
+    }
+
+    /* Mantén el layout centrado como antes */
+    .container-app{ max-width: 900px; }
   </style>
 </head>
+
 <body>
-  <h1>📖 OCR + 🔊 TTS (Flask)</h1>
-  <p class="muted">Sube una imagen para extraer texto con OCR o pega texto directo, y luego genera el audio MP3.</p>
+  <div class="container container-app px-0">
 
-  <div class="card">
-    <h3>1) OCR desde imagen</h3>
+    <!-- Header -->
+    <div class="app-header">
+      <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap">
+        <div>
+          <h1 class="h3 mb-1">📖 OCR + 🔊 TTS <span class="text-secondary">(Flask)</span></h1>
+          <p class="muted mb-0">Sube una imagen para extraer texto con OCR o pega texto directo, y luego genera el audio MP3.</p>
+        </div>
 
-    <!-- NUEVO: arrastrar/pegar -->
-    <div id="dropzone" class="dropzone">
-      Arrastra una imagen aquí o pégala con <b>Ctrl+V</b>
-      <small class="muted">También puedes seguir usando el selector de archivo de abajo.</small>
-
-      <div id="preview" class="preview">
-        <p class="muted" style="margin:10px 0 6px;">Vista previa:</p>
-        <img id="previewImg" alt="preview"/>
+        <!-- Chip/estado (decorativo) -->
+        <div class="d-flex align-items-center gap-2">
+          <span class="badge rounded-pill text-bg-dark border" style="border-color: rgba(255,255,255,.18) !important;">
+            OCR → Texto → TTS
+          </span>
+        </div>
       </div>
     </div>
 
-    <div class="row">
-      <div>
-        <label>Imagen (JPG/PNG)</label><br/>
-        <input id="image" type="file" accept="image/*" />
-      </div>
-      <div>
-        <label>Idioma OCR</label><br/>
-        <select id="ocrLang">
-          <option value="spa" selected>spa (español)</option>
-          <option value="eng">eng (inglés)</option>
-        </select>
-      </div>
-    </div>
-    <p>
-      <button id="btnOcr">🔎 Extraer texto (OCR)</button>
-      <span id="ocrStatus" class="muted"></span>
-    </p>
-  </div>
+    <!-- Card 1 -->
+    <div class="card">
+      <h3 class="h5 mb-3">1) OCR desde imagen</h3>
 
-  <div class="card">
-    <h3>2) Texto a leer</h3>
-    <textarea id="text" placeholder="Aquí quedará el texto OCR, o pega texto manualmente..."></textarea>
-  </div>
+      <!-- Dropzone -->
+      <div id="dropzone" class="dropzone">
+        Arrastra una imagen aquí o pégala con <b>Ctrl+V</b>
+        <small class="muted">También puedes seguir usando el selector de archivo de abajo.</small>
 
-  <div class="card">
-    <h3>3) Voz (TTS)</h3>
-    <div class="row">
-      <div>
-        <label>Voz (Edge TTS)</label><br/>
-        <input id="voice" type="text" value="es-CL-CatalinaNeural" />
+        <div id="preview" class="preview">
+          <p class="muted mt-3 mb-2">Vista previa:</p>
+          <img id="previewImg" alt="preview"/>
+        </div>
       </div>
-      <div>
-        <label>Velocidad</label><br/>
-        <input id="rate" type="text" value="+0%" />
+
+      <!-- Mantengo tus inputs pero con clases bootstrap (no rompe nada) -->
+      <div class="row g-3 align-items-end">
+        <div class="col-12 col-md-7">
+          <label class="form-label">Imagen (JPG/PNG)</label>
+          <input id="image" class="form-control" type="file" accept="image/*" />
+        </div>
+
+        <div class="col-12 col-md-5">
+          <label class="form-label">Idioma OCR</label>
+          <select id="ocrLang" class="form-select">
+            <option value="spa" selected>spa (español)</option>
+            <option value="eng">eng (inglés)</option>
+          </select>
+        </div>
       </div>
-      <div>
-        <label>Volumen</label><br/>
-        <input id="volume" type="text" value="+0%" />
+
+      <div class="d-flex align-items-center gap-3 mt-3 flex-wrap">
+        <button id="btnOcr" class="btn btn-tech">🔎 Extraer texto (OCR)</button>
+        <span id="ocrStatus" class="muted"></span>
       </div>
     </div>
 
-    <p>
-      <button id="btnTts">🔊 Generar audio</button>
-      <span id="ttsStatus" class="muted"></span>
-    </p>
+    <!-- Card 2 -->
+    <div class="card">
+      <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
+        <h3 class="h5 mb-0">2) Texto a leer</h3>
+        <span class="badge rounded-pill" style="background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.12); color: rgba(255,255,255,.75);">
+          editable
+        </span>
+      </div>
 
-    <audio id="player" controls style="width:100%; display:none;"></audio>
-    <p><a id="download" href="#" download="lectura.mp3" style="display:none;">⬇️ Descargar MP3</a></p>
+      <textarea id="text" class="form-control" placeholder="Aquí quedará el texto OCR, o pega texto manualmente..."></textarea>
+      <div class="muted mt-2">
+        Tip: si el OCR viene con cortes de línea, el backend ya lo normaliza para lectura.
+      </div>
+    </div>
+
+    <!-- Card 3 -->
+    <div class="card">
+      <h3 class="h5 mb-3">3) Voz (TTS)</h3>
+
+      <div class="row g-3">
+        <div class="col-12 col-md-4">
+          <label class="form-label">Voz (Edge TTS)</label>
+          <input id="voice" class="form-control" type="text" value="es-CL-CatalinaNeural" />
+        </div>
+        <div class="col-12 col-md-4">
+          <label class="form-label">Velocidad</label>
+          <input id="rate" class="form-control" type="text" value="+0%" />
+        </div>
+        <div class="col-12 col-md-4">
+          <label class="form-label">Volumen</label>
+          <input id="volume" class="form-control" type="text" value="+0%" />
+        </div>
+      </div>
+
+      <div class="d-flex align-items-center gap-3 mt-3 flex-wrap">
+        <button id="btnTts" class="btn btn-tech">🔊 Generar audio</button>
+        <span id="ttsStatus" class="muted"></span>
+      </div>
+
+      <div class="mt-3">
+        <audio id="player" controls class="w-100" style="display:none;"></audio>
+        <div class="mt-2">
+          <a id="download" href="#" download="lectura.mp3" style="display:none;">⬇️ Descargar MP3</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="text-center muted py-3">
+      <small>Interfaz minimalista • OCR local (Tesseract) • Voz (Edge TTS)</small>
+    </div>
+
   </div>
 
   <script src="/static/app.js"></script>
+  <!-- Bootstrap JS (opcional; no requerido para que funcione) -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
