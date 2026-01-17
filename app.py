@@ -31,20 +31,40 @@ app.config["MAX_CONTENT_LENGTH"] = 8 * 1024 * 1024  # 8 MB
 # -----------------------------
 def normalize_paragraphs_ocr(text: str) -> str:
     """
-    Convierte saltos de línea "visuales" del OCR en párrafos naturales.
-    - Une líneas que no terminan en puntuación fuerte.
-    - Mantiene separación por párrafos (doble salto) al reconstruir.
+    1) Normaliza bullets (•) que OCR suele convertir a +, *, ·, o, etc.
+    2) Reconstruye párrafos uniendo saltos de línea "visuales" del OCR.
     """
     if not text:
         return ""
 
-    # Normaliza saltos y espacios
     text = text.replace("\r", "\n")
-    # Colapsa espacios horizontales
+    # Colapsa tabs/espacios múltiples
     text = re.sub(r"[ \t]+", " ", text)
 
-    # Preserva párrafos aproximados:
-    # Tesseract suele separar párrafos con líneas vacías => las detectamos
+    # -----------------------------
+    # 1) Normalización de BULLETS
+    # -----------------------------
+    # Casos típicos al inicio de línea:
+    # "+ texto", "* texto", "· texto", "o texto", "• texto", "● texto", etc.
+    # -> "• texto"
+    bullet_leaders = r"(?:\+|\*|·|o|O|0|●|◦|▪|■|–|—|-)"
+    text = re.sub(
+        rf"(?m)^\s*{bullet_leaders}\s+",
+        "• ",
+        text
+    )
+
+    # También ocurre: "[+] texto" o "(+) texto"
+    text = re.sub(r"(?m)^\s*[\[\(]\s*\+\s*[\]\)]\s+", "• ", text)
+
+    # Si el OCR metió "+" sueltos en líneas que parecen lista:
+    # ejemplo:
+    # " + Estar disponible..."
+    text = re.sub(r"(?m)^\s*\+\s*(?=\S)", "• ", text)
+
+    # -----------------------------
+    # 2) Separación por párrafos
+    # -----------------------------
     raw_lines = text.split("\n")
 
     paragraphs = []
@@ -53,7 +73,6 @@ def normalize_paragraphs_ocr(text: str) -> str:
     for ln in raw_lines:
         ln = ln.strip()
         if not ln:
-            # fin de párrafo
             if current_lines:
                 paragraphs.append(current_lines)
                 current_lines = []
@@ -63,6 +82,9 @@ def normalize_paragraphs_ocr(text: str) -> str:
     if current_lines:
         paragraphs.append(current_lines)
 
+    # -----------------------------
+    # 3) Reconstrucción fluida
+    # -----------------------------
     rebuilt_paragraphs = []
     for plines in paragraphs:
         merged = ""
@@ -71,19 +93,23 @@ def normalize_paragraphs_ocr(text: str) -> str:
                 merged = line
                 continue
 
-            # Si la línea anterior no termina en puntuación fuerte,
-            # asumimos que es "salto visual" y unimos.
-            if not merged.endswith((".", ":", ";", "?", "!", "»", "”")):
+            # Si la línea actual es bullet, partir en nueva línea dentro del mismo párrafo
+            if line.startswith("• "):
+                merged += "\n" + line
+                continue
+
+            # Si la anterior termina en puntuación fuerte, es razonable separar.
+            if merged.endswith((".", ":", ";", "?", "!", "»", "”")):
                 merged += " " + line
             else:
-                # empieza una nueva oración/segmento dentro del mismo párrafo
                 merged += " " + line
 
-        # Limpieza final: espacios duplicados
         merged = re.sub(r"\s{2,}", " ", merged).strip()
         rebuilt_paragraphs.append(merged)
 
+    # Mantener separación por párrafos
     return "\n\n".join(rebuilt_paragraphs).strip()
+
 
 
 def preprocess_for_ocr(pil_img: Image.Image) -> np.ndarray:
