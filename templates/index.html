@@ -29,7 +29,7 @@
       --border: rgba(255,255,255,.10);
       --text: rgba(255,255,255,.92);
       --muted: rgba(255,255,255,.70);
-      --accent: #7aa2ff; /* azul técnico */
+      --accent: #7aa2ff;
       --good: #4ade80;
       --bad: #fb7185;
     }
@@ -77,9 +77,14 @@
     .form-control::placeholder, textarea::placeholder{
       color: rgba(255,255,255,.45);
     }
+
+    /* === Caja de texto MÁS GRANDE (sin romper nada) === */
     textarea{
-      min-height: 220px;
+      min-height: 420px;
+      max-height: 70vh;
       padding: 12px;
+      resize: vertical;
+      line-height: 1.35;
     }
 
     /* Botones */
@@ -112,20 +117,19 @@
     .dropzone {
       border: 2px dashed rgba(255,255,255,.25);
       border-radius: 16px;
-      padding: 18px;
-      margin: 12px 0;
+      padding: 14px;
+      margin: 10px 0;
       text-align: center;
       user-select: none;
-
       background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
     }
     .dropzone.dragover {
       background: rgba(122,162,255,.12);
       border-color: rgba(122,162,255,.70);
     }
-    .dropzone small { display:block; margin-top: 6px; }
+    .dropzone small { display:block; margin-top: 4px; }
 
-    .preview { margin-top: 10px; display:none; }
+    .preview { margin-top: 8px; display:none; }
     .preview img {
       max-width: 100%;
       border-radius: 14px;
@@ -141,7 +145,9 @@
 <body>
   <div class="container container-app px-0">
 
-    <!-- Header -->
+    <!-- ============================================ -->
+    <!-- HEADER -->
+    <!-- ============================================ -->
     <div class="app-header">
       <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap">
         <div>
@@ -149,18 +155,24 @@
           <p class="muted mb-0">Sube una imagen para extraer texto con OCR o pega texto directo, y luego genera el audio MP3.</p>
         </div>
 
-        <!-- Chip/estado (decorativo) -->
-        <div class="d-flex align-items-center gap-2">
+        <div class="d-flex align-items-center gap-2 flex-wrap">
           <span class="badge rounded-pill text-bg-dark border" style="border-color: rgba(255,255,255,.18) !important;">
             OCR → Texto → TTS
           </span>
+          <button id="btnClearText" class="btn btn-ghost btn-sm">🧹 Limpiar texto</button>
+          <button id="btnClearAll" class="btn btn-ghost btn-sm">🧼 Limpiar todo</button>
         </div>
       </div>
     </div>
 
-    <!-- Card 1 -->
+    <!-- ============================================ -->
+    <!-- PASO 1: OCR -->
+    <!-- ============================================ -->
     <div class="card">
-      <h3 class="h5 mb-3">1) OCR desde imagen</h3>
+      <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap mb-3">
+        <h3 class="h5 mb-0">1) OCR desde imagen</h3>
+        <button id="btnClearOcr" class="btn btn-ghost btn-sm">🗑️ Limpiar OCR</button>
+      </div>
 
       <!-- Dropzone -->
       <div id="dropzone" class="dropzone">
@@ -168,19 +180,18 @@
         <small class="muted">También puedes seguir usando el selector de archivo de abajo.</small>
 
         <div id="preview" class="preview">
-          <p class="muted mt-3 mb-2">Vista previa:</p>
+          <p class="muted mt-2 mb-2">Vista previa:</p>
           <img id="previewImg" alt="preview"/>
         </div>
       </div>
 
-      <!-- Mantengo tus inputs pero con clases bootstrap (no rompe nada) -->
-      <div class="row g-3 align-items-end">
-        <div class="col-12 col-md-7">
+      <div class="row g-3 align-items-end mt-2">
+        <div class="col-12 col-md-8">
           <label class="form-label">Imagen (JPG/PNG)</label>
           <input id="image" class="form-control" type="file" accept="image/*" />
         </div>
 
-        <div class="col-12 col-md-5">
+        <div class="col-12 col-md-4">
           <label class="form-label">Idioma OCR</label>
           <select id="ocrLang" class="form-select">
             <option value="spa" selected>spa (español)</option>
@@ -195,35 +206,52 @@
       </div>
     </div>
 
-    <!-- Card 2 -->
+    <!-- ============================================ -->
+    <!-- PASO 2: TEXTO EDITABLE -->
+    <!-- ============================================ -->
     <div class="card">
       <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
-        <h3 class="h5 mb-0">2) Texto a leer</h3>
-        <span class="badge rounded-pill" style="background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.12); color: rgba(255,255,255,.75);">
-          editable
-        </span>
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+          <h3 class="h5 mb-0">2) Texto a leer</h3>
+          <span class="badge rounded-pill" style="background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.12); color: rgba(255,255,255,.75);">
+            editable
+          </span>
+        </div>
+
+        <div class="d-flex gap-2 flex-wrap">
+          <button id="btnCopyText" class="btn btn-ghost btn-sm">📋 Copiar</button>
+          <button id="btnSelectAll" class="btn btn-ghost btn-sm">🔎 Seleccionar</button>
+        </div>
       </div>
 
       <textarea id="text" class="form-control" placeholder="Aquí quedará el texto OCR, o pega texto manualmente..."></textarea>
-      <div class="muted mt-2">
-        Tip: si el OCR viene con cortes de línea, el backend ya lo normaliza para lectura.
+
+      <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mt-2">
+        <div class="muted">
+          Tip: si el OCR viene con cortes de línea, el backend ya lo normaliza para lectura.
+        </div>
+        <div class="muted">
+          <small id="charCount">0 chars</small>
+        </div>
       </div>
     </div>
 
-    <!-- Card 3 -->
+    <!-- ============================================ -->
+    <!-- PASO 3: TTS (Voz) -->
+    <!-- ============================================ -->
     <div class="card">
       <h3 class="h5 mb-3">3) Voz (TTS)</h3>
 
       <div class="row g-3">
-        <div class="col-12 col-md-4">
+        <div class="col-12">
           <label class="form-label">Voz (Edge TTS)</label>
           <input id="voice" class="form-control" type="text" value="es-CL-CatalinaNeural" />
         </div>
-        <div class="col-12 col-md-4">
+        <div class="col-12 col-md-6">
           <label class="form-label">Velocidad</label>
           <input id="rate" class="form-control" type="text" value="+0%" />
         </div>
-        <div class="col-12 col-md-4">
+        <div class="col-12 col-md-6">
           <label class="form-label">Volumen</label>
           <input id="volume" class="form-control" type="text" value="+0%" />
         </div>
@@ -234,21 +262,121 @@
         <span id="ttsStatus" class="muted"></span>
       </div>
 
+      <!-- Reproductor de audio -->
       <div class="mt-3">
         <audio id="player" controls class="w-100" style="display:none;"></audio>
         <div class="mt-2">
           <a id="download" href="#" download="lectura.mp3" style="display:none;">⬇️ Descargar MP3</a>
         </div>
       </div>
+
+      <div class="muted mt-3">
+        Tip: puedes pegar imagen con <b>Ctrl+V</b> y luego ajustar el texto antes de generar audio.
+      </div>
     </div>
 
-    <div class="text-center muted py-3">
+    <!-- ============================================ -->
+    <!-- FOOTER -->
+    <!-- ============================================ -->
+    <div class="text-center muted py-2">
       <small>Interfaz minimalista • OCR local (Tesseract) • Voz (Edge TTS)</small>
     </div>
 
   </div>
 
   <script src="/static/app.js"></script>
+
+  <!-- JS extra: solo UI (no toca tu app.js) -->
+  <script>
+    (function () {
+      const $ = (id) => document.getElementById(id);
+
+      const text = $("text");
+      const image = $("image");
+      const preview = $("preview");
+      const previewImg = $("previewImg");
+      const ocrStatus = $("ocrStatus");
+      const ttsStatus = $("ttsStatus");
+      const player = $("player");
+      const download = $("download");
+      const charCount = $("charCount");
+
+      function setMuted(el, msg) {
+        if (!el) return;
+        el.textContent = msg || "";
+        el.className = "muted";
+      }
+
+      function clearAudio() {
+        if (player) {
+          try { player.pause(); } catch(_) {}
+          player.removeAttribute("src");
+          player.load();
+          player.style.display = "none";
+        }
+        if (download) {
+          download.removeAttribute("href");
+          download.style.display = "none";
+        }
+        setMuted(ttsStatus, "");
+      }
+
+      function clearOCRUI() {
+        if (image) image.value = "";
+        if (preview) preview.style.display = "none";
+        if (previewImg) previewImg.removeAttribute("src");
+        setMuted(ocrStatus, "");
+      }
+
+      function clearText() {
+        if (text) text.value = "";
+        if (charCount) charCount.textContent = "0 chars";
+      }
+
+      // Botones limpiar (no toca backend)
+      $("btnClearText")?.addEventListener("click", () => {
+        clearText();
+        clearAudio();
+      });
+
+      $("btnClearOcr")?.addEventListener("click", () => {
+        clearOCRUI();
+      });
+
+      $("btnClearAll")?.addEventListener("click", () => {
+        clearOCRUI();
+        clearText();
+        clearAudio();
+      });
+
+      // Botones utilitarios
+      $("btnCopyText")?.addEventListener("click", async () => {
+        const v = (text?.value || "");
+        if (!v.trim()) return;
+        try {
+          await navigator.clipboard.writeText(v);
+        } catch (_) {
+          text.focus();
+          text.select();
+          document.execCommand("copy");
+        }
+      });
+
+      $("btnSelectAll")?.addEventListener("click", () => {
+        text?.focus();
+        text?.select();
+      });
+
+      // Contador de caracteres
+      function updateCount() {
+        const n = (text?.value || "").length;
+        if (charCount) charCount.textContent = `${n} chars`;
+      }
+      text?.addEventListener("input", updateCount);
+      updateCount();
+    })();
+  </script>
+
   <!-- Bootstrap JS (opcional; no requerido para que funcione) -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
