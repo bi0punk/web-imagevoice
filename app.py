@@ -158,10 +158,6 @@ def generate_mp3_bytes(text: str, voice: str, rate: str, volume: str) -> bytes:
 
     return data
 
-
-# -----------------------------
-# Routes
-# -----------------------------
 @app.get("/")
 def index():
     return render_template("index.html")
