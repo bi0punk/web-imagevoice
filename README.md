@@ -152,11 +152,16 @@ Variables de entorno (ver `.env.example`):
 
 | Variable | Default | Descripción |
 |---|---|---|
-| `DEBUG` | `false` | Modo debug Flask (solo desarrollo) |
-| `OCR_LANG` | `spa` | Idioma para OCR |
-| `TTS_VOICE` | `es-CL-CatalinaNeural` | Voz de Edge TTS |
-| `TTS_RATE` | `+0%` | Velocidad de habla |
-| `TTS_VOLUME` | `+0%` | Volumen |
+| `IMGVOICE_HOST` | `127.0.0.1` | Host de escucha |
+| `IMGVOICE_PORT` | `5000` | Puerto |
+| `IMGVOICE_RATE_LIMIT` | `10` | Peticiones máximas por minuto por IP |
+| `IMGVOICE_OCR_LANG` | `spa` | Idioma para OCR |
+| `IMGVOICE_VOICE` | `es-CL-CatalinaNeural` | Voz de Edge TTS |
+| `IMGVOICE_RATE` | `+0%` | Velocidad de habla |
+| `IMGVOICE_VOLUME` | `+0%` | Volumen |
+| `IMGVOICE_MAX_TEXT` | `500` | Longitud máxima de texto para TTS |
+
+Rate limiting: 10 peticiones/minuto por IP en ambos endpoints (`/api/ocr`, `/api/tts`). Caché TTS en memoria para evitar regenerar audio idéntico.
 
 ## CI/CD
 
