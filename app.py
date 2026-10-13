@@ -5,17 +5,15 @@ import logging
 import os
 import re
 import time
-from datetime import datetime
 from functools import lru_cache
 from pathlib import Path
 
 import cv2
+import edge_tts
 import numpy as np
 import pytesseract
-from PIL import Image
 from flask import Flask, jsonify, render_template, request, send_file
-
-import edge_tts
+from PIL import Image
 
 logging.basicConfig(
     level=logging.INFO,
@@ -67,7 +65,7 @@ def normalize_paragraphs_ocr(text: str) -> str:
 
     raw_lines = text.split("\n")
     paragraphs = []
-    current_lines = []
+    current_lines: list[str] = []
 
     for ln in raw_lines:
         ln = ln.strip()
